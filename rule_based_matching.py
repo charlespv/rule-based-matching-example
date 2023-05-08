@@ -1,28 +1,20 @@
-import pandas as pd
-from giskard import GiskardClient
-
 import spacy
 import fr_dep_news_trf
 from spacy.matcher import Matcher
-
-NLP = fr_dep_news_trf.load()
+import pandas as pd
 
 def single_prediction(raw_text):
-        # print("start single prediction")
-        # print(raw_text)
         matcher = Matcher(NLP.vocab)
         pattern = [{"TEXT": {"FUZZY": "écologie"}}]
         matcher.add("greenlite", [pattern])
         proba = 0
         doc = NLP(raw_text)
         matches = matcher(doc)
-        # print(matches)
         match_id_amount = 0
         for match_id, start, end in matches:
             string_id = NLP.vocab.strings[match_id]  # Get string representation
             span = doc[start:end]  # The matched span
             match_id_amount += 1
-            # print(match_id, string_id, start, end, span.text)
         if match_id_amount == 0:
             proba = 0
         else:
@@ -39,6 +31,8 @@ def wrapped_prediction_function(X):
     predict_proba = predict_proba.to_numpy()
     return predict_proba
 
+print("Load language")
+NLP = fr_dep_news_trf.load()
 
 test_data = pd.DataFrame()
 sentences_dataset = [
@@ -51,28 +45,8 @@ sentences_dataset = [
 test_data["sentences"] = sentences_dataset
 test_data["target"] = ["positive", "negative", "positive", "positive", "negative"]
 
+print("Compute prediction")
+predict_proba = wrapped_prediction_function(test_data)
 
-#predict_proba = wrapped_prediction_function(test_data)
-#print(predict_proba)
-
-
-url = "http://localhost:19000"
-# you can generate your API token in the Admin tab of the Giskard application (for installation, see: https://docs.giskard.ai/start/guides/installation)
-token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInRva2VuX3R5cGUiOiJBUEkiLCJhdXRoIjoiUk9MRV9BRE1JTiIsImV4cCI6MTY4NjA3MDk2N30.AluiVBmsd8Dxmpscwx8DkM8JM3hzC5Oq462Q1ktccRY"
-client = GiskardClient(url, token)
-project = client.create_project("topic_detection",
-                                 "TOPIC DETECTION",
-                                 "DOWNSTREAM INFERENCE REVIEW")
-topic_detection = client.get_project("topic_detection")
-topic_detection.upload_model_and_df(
-    prediction_function=wrapped_prediction_function,
-    model_type='classification',
-    df=test_data,
-    column_types={
-        'sentences': 'text',
-        'target': 'category'
-    },
-    target='target',
-    feature_names=['sentences'],
-    classification_labels=['negative', 'positive']
-)
+print("Results")
+print(predict_proba)
